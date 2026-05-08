@@ -1,0 +1,59 @@
+name: Build ClassiCube for ARMv6 (iOS 4.2.1)
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-13
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install ldid zip
+
+      - name: Download iOS 4.2 SDK
+        run: |
+          curl -L https://github.com/theos/sdks/releases/download/v1/iPhoneOS4.2.sdk.tar.xz -o sdk.tar.xz
+          mkdir -p ~/sdks
+          tar -xJf sdk.tar.xz -C ~/sdks/
+
+      - name: Setup Xcode toolchain
+        run: |
+          sudo xcode-select -s /Applications/Xcode.app
+          sudo cp -r ~/sdks/iPhoneOS4.2.sdk \
+            /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/
+
+      - name: Patch Makefile for ARMv6
+        run: |
+          cd misc/ios
+          sed -i 's/ARCH_32 := armv7/ARCH_32 := armv6/' Makefile
+          sed -i 's/IOS_MIN_VERSION ?= 6.0/IOS_MIN_VERSION ?= 4.2/' Makefile
+          sed -i 's/IOS_SDK_VERSION ?= 12.1/IOS_SDK_VERSION ?= 4.2/' Makefile
+
+      - name: Build ARMv6 binary
+        run: |
+          cd misc/ios
+          make ARCH_32=armv6 IOS_MIN_VERSION=4.2 IOS_SDK_VERSION=4.2
+
+      - name: Sign and package IPA
+        run: |
+          cd misc/ios
+          BINARY=$(find build/ -name "ClassiCube" -type f | head -1)
+          ldid -S "$BINARY"
+          cd build/ios
+          mkdir -p Payload
+          cp -R ClassiCube-iPhoneOS.app Payload/ClassiCube.app
+          zip -r ../../ClassiCube-armv6-ios4.ipa Payload
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClassiCube-armv6-ios4
+          path: misc/ios/ClassiCube-armv6-ios4.ipa
+          retention-days: 30
