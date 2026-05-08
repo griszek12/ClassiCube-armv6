@@ -19,34 +19,39 @@ jobs:
 
       - name: Download iOS 4.2 SDK
         run: |
-          curl -L https://github.com/theos/sdks/releases/download/v1/iPhoneOS4.2.sdk.tar.xz -o sdk.tar.xz
-          mkdir -p ~/sdks
-          tar -xJf sdk.tar.xz -C ~/sdks/
+          git clone --depth=1 --filter=blob:none --sparse https://github.com/Sn0wCooder/theos-sdks.git ~/theos-sdks
+          cd ~/theos-sdks
+          git sparse-checkout set iPhoneOS4.2.sdk
+          ls ~/theos-sdks/
 
       - name: Setup Xcode toolchain
         run: |
           sudo xcode-select -s /Applications/Xcode.app
-          sudo cp -r ~/sdks/iPhoneOS4.2.sdk \
-            /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/
+          XCODE_SDKS="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs"
+          sudo cp -r ~/theos-sdks/iPhoneOS4.2.sdk "$XCODE_SDKS/"
+          ls "$XCODE_SDKS/"
 
       - name: Patch Makefile for ARMv6
         run: |
           cd misc/ios
-          sed -i 's/ARCH_32 := armv7/ARCH_32 := armv6/' Makefile
-          sed -i 's/IOS_MIN_VERSION ?= 6.0/IOS_MIN_VERSION ?= 4.2/' Makefile
-          sed -i 's/IOS_SDK_VERSION ?= 12.1/IOS_SDK_VERSION ?= 4.2/' Makefile
+          sed -i '' 's/ARCH_32	:= armv7/ARCH_32	:= armv6/' Makefile
+          sed -i '' 's/IOS_MIN_VERSION ?= 6.0/IOS_MIN_VERSION ?= 4.2/' Makefile
+          sed -i '' 's/IOS_SDK_VERSION	?= 12.1/IOS_SDK_VERSION	?= 4.2/' Makefile
+          grep -E "ARCH|VERSION" Makefile
 
       - name: Build ARMv6 binary
         run: |
           cd misc/ios
-          make ARCH_32=armv6 IOS_MIN_VERSION=4.2 IOS_SDK_VERSION=4.2
+          make ARCH_32=armv6 IOS_MIN_VERSION=4.2 IOS_SDK_VERSION=4.2 2>&1
 
       - name: Sign and package IPA
         run: |
           cd misc/ios
           BINARY=$(find build/ -name "ClassiCube" -type f | head -1)
+          echo "Signing: $BINARY"
           ldid -S "$BINARY"
           cd build/ios
+          rm -rf Payload
           mkdir -p Payload
           cp -R ClassiCube-iPhoneOS.app Payload/ClassiCube.app
           zip -r ../../ClassiCube-armv6-ios4.ipa Payload
