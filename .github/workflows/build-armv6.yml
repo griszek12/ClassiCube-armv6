@@ -7,54 +7,44 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-13
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: |
-          brew install ldid zip
+        run: brew install ldid zip
 
-      - name: Download iOS 7.0 SDK (with armv6 support)
-        run: |
-          git clone --depth=1 --filter=blob:none --sparse https://github.com/Sn0wCooder/theos-sdks.git ~/theos-sdks
-          cd ~/theos-sdks
-          git sparse-checkout set iPhoneOS7.0.sdk
-          ls ~/theos-sdks/
-
-      - name: Setup Xcode toolchain
-        run: |
-          sudo xcode-select -s /Applications/Xcode.app
-          XCODE_SDKS="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs"
-          sudo cp -r ~/theos-sdks/iPhoneOS7.0.sdk "$XCODE_SDKS/"
-          ls "$XCODE_SDKS/"
-
-      - name: Patch Makefile for ARMv6
-        run: |
-          cd misc/ios
-          sed -i '' 's/ARCH_32	:= armv7/ARCH_32	:= armv6/' Makefile
-          sed -i '' 's/IOS_MIN_VERSION ?= 6.0/IOS_MIN_VERSION ?= 4.2/' Makefile
-          sed -i '' 's/IOS_SDK_VERSION	?= 12.1/IOS_SDK_VERSION	?= 7.0/' Makefile
-          grep -E "ARCH|VERSION" Makefile
+      - name: Show available SDKs
+        run: ls /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/
 
       - name: Build ARMv6 binary
         run: |
           cd misc/ios
-          make ARCH_32=armv6 IOS_MIN_VERSION=4.2 IOS_SDK_VERSION=7.0 2>&1
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          CC=$(xcrun --sdk iphoneos --find clang)
+          mkdir -p build/ios/armv6 build/ios/ClassiCube-iPhoneOS.app
+          CFLAGS="-arch armv6 -isysroot $SDK -miphoneos-version-min=3.0 -Os -fno-math-errno -fvisibility=hidden"
+          LIBS="-framework Foundation -framework CoreFoundation -framework CoreGraphics -framework OpenGLES -framework UIKit -framework Security -framework CoreText -framework QuartzCore -lobjc"
+          LDFLAGS="-arch armv6 -isysroot $SDK -miphoneos-version-min=3.0 -dead_strip"
+          for f in $(find ../../src -maxdepth 1 -name "*.c") $(find ../../src/ios -name "*.c") $(find ../../third_party/bearssl -name "*.c"); do
+            $CC $CFLAGS -c "$f" -o "build/ios/armv6/$(basename ${f%.c}.o)"
+          done
+          for f in $(find ../../src/ios -name "*.m"); do
+            $CC $CFLAGS -c "$f" -o "build/ios/armv6/$(basename ${f%.m}.o)"
+          done
+          $CC $LDFLAGS build/ios/armv6/*.o $LIBS -o build/ios/ClassiCube-iPhoneOS.app/ClassiCube
+          file build/ios/ClassiCube-iPhoneOS.app/ClassiCube
 
-      - name: Sign and package IPA
+      - name: Package IPA
         run: |
           cd misc/ios
-          BINARY=$(find build/ -name "ClassiCube" -type f | head -1)
-          echo "Signing: $BINARY"
-          ldid -S "$BINARY"
-          cd build/ios
-          rm -rf Payload
-          mkdir -p Payload
-          cp -R ClassiCube-iPhoneOS.app Payload/ClassiCube.app
-          zip -r ../../ClassiCube-armv6-ios4.ipa Payload
+          cp Info.plist PkgInfo build/ios/ClassiCube-iPhoneOS.app/
+          ldid -S build/ios/ClassiCube-iPhoneOS.app/ClassiCube
+          rm -rf Payload && mkdir -p Payload
+          cp -R build/ios/ClassiCube-iPhoneOS.app Payload/ClassiCube.app
+          zip -r ClassiCube-armv6-ios4.ipa Payload
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
