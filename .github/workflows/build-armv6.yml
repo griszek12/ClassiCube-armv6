@@ -16,18 +16,15 @@ jobs:
       - name: Install dependencies
         run: brew install ldid zip
 
-      - name: Show available SDKs
-        run: ls /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/
-
       - name: Build ARMv6 binary
         run: |
           cd misc/ios
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
           CC=$(xcrun --sdk iphoneos --find clang)
           mkdir -p build/ios/armv6 build/ios/ClassiCube-iPhoneOS.app
-          CFLAGS="-arch armv6 -isysroot $SDK -miphoneos-version-min=3.0 -Os -fno-math-errno -fvisibility=hidden"
+          CFLAGS="-arch armv6 -isysroot $SDK -miphoneos-version-min=5.0 -Os -fno-math-errno -fvisibility=hidden"
           LIBS="-framework Foundation -framework CoreFoundation -framework CoreGraphics -framework OpenGLES -framework UIKit -framework Security -framework CoreText -framework QuartzCore -lobjc"
-          LDFLAGS="-arch armv6 -isysroot $SDK -miphoneos-version-min=3.0 -dead_strip"
+          LDFLAGS="-arch armv6 -isysroot $SDK -miphoneos-version-min=5.0 -dead_strip"
           for f in $(find ../../src -maxdepth 1 -name "*.c") $(find ../../src/ios -name "*.c") $(find ../../third_party/bearssl -name "*.c"); do
             $CC $CFLAGS -c "$f" -o "build/ios/armv6/$(basename ${f%.c}.o)"
           done
