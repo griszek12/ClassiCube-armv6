@@ -23,7 +23,7 @@ jobs:
           CC=$(xcrun --sdk iphoneos --find clang)
           mkdir -p build/ios/armv6 build/ios/ClassiCube-iPhoneOS.app
           CFLAGS="-arch armv6 -isysroot $SDK -miphoneos-version-min=7.0 -Os -fno-math-errno -fvisibility=hidden"
-          LIBS="-framework Foundation -framework CoreFoundation -framework CoreGraphics -framework OpenGLES -framework UIKit -framework Security -framework CoreText -framework QuartzCore -lobjc"
+          LIBS="-framework Foundation -framework CoreFoundation -framework CoreGraphics -framework OpenGLES -framework UIKit -framework Security -framework CoreText -framework QuartzCore -lobjc -lSystem -lpthread"
           LDFLAGS="-arch armv6 -isysroot $SDK -miphoneos-version-min=7.0 -dead_strip"
           for f in $(find ../../src -maxdepth 1 -name "*.c") $(find ../../src/ios -name "*.c") $(find ../../third_party/bearssl -name "*.c"); do
             $CC $CFLAGS -c "$f" -o "build/ios/armv6/$(basename ${f%.c}.o)"
