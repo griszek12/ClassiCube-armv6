@@ -1,4 +1,4 @@
-name: Build ClassiCube for ARMv7 (iOS)
+name: Build ClassiCube for ARMv7
 
 on:
   push:
@@ -7,11 +7,17 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-13  # macos-13 ma Xcode 14 ktory wspiera armv7!
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Select Xcode 14
+        run: |
+          sudo xcode-select -s /Applications/Xcode_14.3.1.app
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
 
       - name: Install dependencies
         run: brew install ldid zip
@@ -19,7 +25,7 @@ jobs:
       - name: Build ARMv7 IPA
         run: |
           cd misc/ios
-          make ARCH_32=armv7 ARCH_64=arm64 IOS_MIN_VERSION=6.0 IOS_SDK_VERSION=18.5 2>&1
+          make IOS_MIN_VERSION=6.0 2>&1
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
